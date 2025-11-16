@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Copywriting Generator</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+#trials-info{margin:0.8rem 0;color:#555;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+</style>
+</head>
+<body>
+<h1>✍️ Copywriting Generator</h1>
+<p>Ads, product descriptions & CTAs</p>
+
+<div class="box">
+<p id="trials-info">Checking your free trials...</p>
+
+<label>Copy Type</label>
+<select id="copy_type">
+<option value="ad">Ad</option>
+<option value="product_desc">Product Description</option>
+<option value="cta">CTA</option>
+</select>
+
+<label>Tone</label>
+<select id="tone">
+<option value="friendly">Friendly</option>
+<option value="professional">Professional</option>
+<option value="persuasive">Persuasive</option>
+</select>
+
+<label>Product Name</label>
+<input id="name" type="text" placeholder="Enter product name"/>
+
+<button id="generate-btn">Generate</button>
+<button id="subscribe-btn">Subscribe / Unlock Full Access</button>
+
+<p class="price">
+Formal: <span class="discount">$̶1̶5</span>
+Now: <span>$7</span>
+</p>
+</div>
+
+<div id="result"></div>
+
+<script>
+async function checkTrials() {
+    try {
+        const res = await fetch("/user-trials");
+        const data = await res.json();
+        const trialsLeft = data.trials.copywriting;
+        const paid = data.paid;
+        const trialsInfo = document.getElementById("trials-info");
+        const subscribeBtn = document.getElementById("subscribe-btn");
+
+        if(paid) {
+            trialsInfo.textContent = "Paid access: Unlimited use";
+            subscribeBtn.style.display = "none";
+        } else if(trialsLeft > 0) {
+            trialsInfo.textContent = `Free trial remaining: ${trialsLeft}`;
+            subscribeBtn.style.display = "none";
+        } else {
+            trialsInfo.textContent = "Free trials used up! Subscribe to continue.";
+            subscribeBtn.style.display = "block";
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+document.getElementById("generate-btn").addEventListener("click", async () => {
+    const trialsText = document.getElementById("trials-info").textContent;
+    if(trialsText.includes("used up")) {
+        alert("Please subscribe to continue using this vending machine.");
+        return;
+    }
+
+    const data = {
+        copy_type: document.getElementById("copy_type").value,
+        tone: document.getElementById("tone").value,
+        name: document.getElementById("name").value
+    };
+
+    const res = await fetch("/copywriting", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    const resultDiv = document.getElementById("result");
+    resultDiv.innerHTML = "<h3>Result</h3><p>" + result.result + "</p>";
+    resultDiv.style.display = "block";
+    checkTrials();
+});
+
+// Subscription button handler
+document.getElementById("subscribe-btn").addEventListener("click", async () => {
+    const res = await fetch("/paypal-init", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({amount: 7}) // USD
+    });
+    const data = await res.json();
+    if(data.status === "success") window.location.href = data.redirect_url;
+});
+
+// Initialize on load
+checkTrials();
+</script>
+</body>
+</html>
