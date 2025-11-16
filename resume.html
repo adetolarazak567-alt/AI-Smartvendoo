@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Resume & LinkedIn Optimizer</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+#trials{margin-top:0.5rem;font-size:0.9rem;color:#d9534f;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+</style>
+</head>
+<body>
+<h1>📄 Resume & LinkedIn Optimizer</h1>
+<p>Upgrade your career profile</p>
+<div class="box">
+<label>Purpose</label>
+<select id="purpose">
+<option value="resume">Resume Rewrite</option>
+<option value="linkedin">LinkedIn Rewrite</option>
+<option value="cover">Cover Letter</option>
+</select>
+
+<label>Experience</label>
+<textarea id="experience" rows="4" placeholder="Enter your experience"></textarea>
+
+<label>Skills</label>
+<input id="skills" type="text" placeholder="Enter skills"/>
+
+<label>Job Title Applying For</label>
+<input id="job_title" type="text" placeholder="Enter job title"/>
+
+<p id="trials">Free Trials Remaining: 3</p>
+
+<button onclick="generateResume()">Optimize Profile</button>
+
+<p class="price">
+Formal: <span class="discount">$15</span>
+Now: <span>$7</span>
+</p>
+<button id="subscribe-btn">Subscribe / Unlock Full Access</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+function updateTrials(trialsLeft){
+    document.getElementById("trials").innerText = "Free Trials Remaining: " + trialsLeft;
+}
+
+function generateResume(){
+    let purpose=document.getElementById("purpose").value;
+    let exp=document.getElementById("experience").value;
+    let skills=document.getElementById("skills").value;
+    let title=document.getElementById("job_title").value;
+    if(!exp.trim()||!skills.trim()||!title.trim()){alert("Please enter all fields");return;}
+
+    fetch("/resume",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({purpose:purpose,experience:exp,skills:skills,title:title})
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("result").innerHTML="<h3>Result</h3><p>"+data.result+"</p>";
+        document.getElementById("result").style.display="block";
+        if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+    })
+    .catch(err=>alert("Error connecting to server"));
+}
+
+document.getElementById("subscribe-btn").addEventListener("click", async ()=>{
+    const res = await fetch("/paypal-init",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({amount:7})
+    });
+    const data = await res.json();
+    if(data.status==="success") window.location.href = data.redirect_url;
+});
+
+// Initial fetch to get remaining trials
+fetch("/trials?vm=resume")
+.then(res=>res.json())
+.then(data=>{
+    if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+});
+</script>
+</body>
+</html>
