@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ebook Auto-Writer</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+#trials{margin-top:0.5rem;font-size:0.9rem;color:#d9534f;}
+</style>
+</head>
+<body>
+<h1>📚 Ebook Auto-Writer</h1>
+<p>Generate 5–20 page ebooks automatically</p>
+<div class="box">
+<label>Ebook Length</label>
+<select id="length">
+<option value="5">5 Pages</option>
+<option value="10">10 Pages</option>
+<option value="15">15 Pages</option>
+<option value="20">20 Pages</option>
+</select>
+
+<label>Writing Style</label>
+<select id="style">
+<option value="professional">Professional</option>
+<option value="story">Story</option>
+<option value="motivational">Motivational</option>
+<option value="informative">Informative</option>
+</select>
+
+<label>Ebook Topic</label>
+<input id="topic" type="text" placeholder="Enter topic"/>
+
+<label>Chapter Structure (Optional)</label>
+<textarea id="structure" rows="4" placeholder="Enter chapters structure if any"></textarea>
+
+<p id="trials">Free Trials Remaining: 3</p>
+
+<button onclick="generateEbook()">Generate Ebook</button>
+
+<p class="price">
+Formal: <span class="discount" id="formal-price">$15</span>
+Now: <span id="discounted-price">$7</span>
+</p>
+<button onclick="subscribe()">Subscribe / Unlock Full Access</button>
+</div>
+<div id="result"></div>
+
+<script>
+function updateTrials(trialsLeft){
+    document.getElementById("trials").innerText = "Free Trials Remaining: " + trialsLeft;
+}
+
+function generateEbook(){
+    let length=document.getElementById("length").value;
+    let style=document.getElementById("style").value;
+    let topic=document.getElementById("topic").value;
+    let structure=document.getElementById("structure").value;
+    if(!topic.trim()){alert("Please enter a topic"); return;}
+
+    fetch("/ebook", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({length:length,style:style,topic:topic,structure:structure})
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("result").innerHTML="<h3>Result</h3><p>"+data.result+"</p>";
+        document.getElementById("result").style.display="block";
+        if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+    })
+    .catch(err=>alert("Error connecting to server"));
+}
+
+function subscribe(){
+    fetch("/pricing").then(res=>res.json()).then(rate=>{
+        let amount = rate.per_month;
+        fetch("/paypal-init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amount})})
+        .then(res=>res.json()).then(data=>{
+            if(data.status==="success") window.location.href=data.redirect_url;
+        });
+    });
+}
+
+// Initial fetch to get remaining trials
+fetch("/trials?vm=ebook").then(res=>res.json()).then(data=>{
+    if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+});
+</script>
+</body>
+</html>
