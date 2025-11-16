@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin Dashboard - AI SmartVendo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body {
+    font-family: 'Inter', sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+.wrap {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+.card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #007bff;
+}
+.table-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+}
+th {
+    background: #f5f7fa;
+    color: #555;
+}
+tr:hover {
+    background: #f9f9f9;
+}
+button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+}
+.btn-small { padding: 5px 8px; margin-right: 6px; }
+.green { background: #10b981; color: #fff; }
+.red { background: #ef4444; color: #fff; }
+button:hover { opacity: 0.9; }
+pre {
+    background: #f5f7fa;
+    padding: 1rem;
+    border-radius: 8px;
+    max-height: 300px;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+#loginBox {
+    max-width: 400px;
+    margin: 4rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    text-align: center;
+}
+#loginBox input {
+    width: 100%;
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+}
+#loginBox button {
+    width: 100%;
+    padding: 0.8rem;
+    margin-top: 1rem;
+    border-radius: 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+#dashboard { display: none; }
+</style>
+</head>
+<body>
+
+<header>Admin Dashboard - AI SmartVendo</header>
+
+<div id="loginBox">
+    <h2>Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Enter Gmail">
+    <input type="password" id="adminPass" placeholder="Enter Password">
+    <button onclick="login()">Login</button>
+</div>
+
+<div id="dashboard" class="wrap">
+
+  <div class="grid">
+    <div class="card">
+      <h3>Total Users</h3>
+      <p id="total">...</p>
+    </div>
+    <div class="card">
+      <h3>Active (24h)</h3>
+      <p id="active">...</p>
+    </div>
+    <div class="card">
+      <h3>Banned Users</h3>
+      <p id="banned">...</p>
+    </div>
+    <div class="card">
+      <h3>Earnings</h3>
+      <p id="earnings">...</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Recent Users</h3>
+    <div class="table-container">
+      <table id="usersTable">
+        <thead>
+          <tr><th>Email</th><th>Country</th><th>Trials</th><th>Usage</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Recent Activity Logs (latest 200)</h3>
+    <pre id="logs"></pre>
+  </div>
+
+</div>
+
+<script>
+const ADMIN_EMAIL = "adetolarazak567@gmail.com"; // replace with your admin email
+const ADMIN_PASS = "@razzyadminAI567"; // replace with your admin password
+
+async function login() {
+    const email = document.getElementById("adminEmail").value.trim();
+    const pass = document.getElementById("adminPass").value.trim();
+    if(email === ADMIN_EMAIL && pass === ADMIN_PASS){
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        loadData();
+    } else {
+        alert("Invalid admin credentials!");
+    }
+}
+
+async function loadData(){
+    // Simulating fetching data from server
+    // Replace this with actual fetch('/admin_data') in deployment
+    const j = {
+        total_users: 120,
+        active_users_last_24h: 32,
+        banned_users: 5,
+        earnings: "$340",
+        recent_users: [
+            {email:"user1@gmail.com", country:"NG", trial_uses_left:2, usage_count:5, created_at: Date.now()/1000},
+            {email:"user2@gmail.com", country:"US", trial_uses_left:0, usage_count:10, created_at: Date.now()/1000}
+        ],
+        recent_logs: ["User user1 used Copywriting VM", "User user2 paid subscription"]
+    };
+
+    document.getElementById('total').innerText = j.total_users;
+    document.getElementById('active').innerText = j.active_users_last_24h;
+    document.getElementById('banned').innerText = j.banned_users;
+    document.getElementById('earnings').innerText = j.earnings;
+
+    const tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = '';
+    j.recent_users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${u.email||'(anon)'}</td>
+          <td>${u.country||'NG'}</td>
+          <td>${u.trial_uses_left}</td>
+          <td>${u.usage_count}</td>
+          <td>${new Date(u.created_at*1000).toLocaleString()}</td>
+          <td>
+            <button class="btn-small red" onclick="alert('Ban ${u.email}')">Ban</button>
+            <button class="btn-small green" onclick="alert('Unban ${u.email}')">Unban</button>
+            <button class="btn-small red" onclick="alert('Delete ${u.email}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('logs').innerText = j.recent_logs.join("\n");
+}
+</script>
+
+</body>
+</html>
