@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Branding & Logo Generator</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+#trials{margin-top:0.5rem;font-size:0.9rem;color:#d9534f;}
+</style>
+</head>
+<body>
+<h1>🎨 Branding & Logo Concept Generator</h1>
+<p>Generate brand identity, slogans, and logo ideas</p>
+<div class="box">
+
+<label>Brand Style</label>
+<select id="style">
+<option value="minimalist">Minimalist</option>
+<option value="luxury">Luxury</option>
+<option value="playful">Playful</option>
+<option value="corporate">Corporate</option>
+</select>
+
+<label>Output Type</label>
+<select id="output">
+<option value="identity">Brand Identity</option>
+<option value="logo">Logo Prompts</option>
+<option value="slogan">Slogan Ideas</option>
+<option value="colors">Color Palette</option>
+</select>
+
+<label>Brand Name</label>
+<input id="brand_name" type="text" placeholder="Enter brand name"/>
+
+<label>Brand Description</label>
+<textarea id="description" rows="4" placeholder="What your brand does"></textarea>
+
+<p id="trials">Free Trials Remaining: 3</p>
+
+<button onclick="generateBranding()">Generate Branding</button>
+
+<p class="price">
+Formal: <span class="discount" id="formal-price">$15</span>
+Now: <span id="discounted-price">$7</span>
+</p>
+<button onclick="subscribe()">Subscribe / Unlock Full Access</button>
+
+</div>
+<div id="result"></div>
+
+<script>
+function updateTrials(trialsLeft){
+    document.getElementById("trials").innerText = "Free Trials Remaining: " + trialsLeft;
+}
+
+function generateBranding(){
+  let style=document.getElementById("style").value;
+  let output=document.getElementById("output").value;
+  let name=document.getElementById("brand_name").value;
+  let desc=document.getElementById("description").value;
+  if(!name.trim()||!desc.trim()){alert("Please enter all fields");return;}
+
+  fetch("/branding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:style,output:output,name:name,description:desc})})
+  .then(res=>res.json())
+  .then(data=>{
+      document.getElementById("result").innerHTML="<h3>Result</h3><p>"+data.result+"</p>";
+      document.getElementById("result").style.display="block";
+      if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+  })
+  .catch(err=>alert("Error connecting to server"));
+}
+
+function subscribe(){
+    fetch("/pricing").then(res=>res.json()).then(rate=>{
+        let amount = rate.per_month;
+        fetch("/paypal-init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amount})})
+        .then(res=>res.json()).then(data=>{
+            if(data.status==="success") window.location.href=data.redirect_url;
+        });
+    });
+}
+
+// Fetch initial trials count
+fetch("/trials?vm=branding").then(res=>res.json()).then(data=>{
+    if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+});
+</script>
+</body>
+</html>
