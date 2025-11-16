@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Dropshipping Product Research</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.free-trial{margin-top:0.5rem;font-size:0.9rem;color:#d9534f;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>🛒 Dropshipping Product Research</h1>
+<p>Find winning products & marketing angles</p>
+<div class="box">
+
+<label>Research Type</label>
+<select id="research_type">
+<option value="product">Winning Product List</option>
+<option value="marketing">Marketing Angle</option>
+<option value="audience">Target Audience</option>
+<option value="description">Store Description</option>
+</select>
+
+<label>Platform</label>
+<select id="platform">
+<option value="tiktok">TikTok</option>
+<option value="amazon">Amazon</option>
+<option value="aliexpress">AliExpress</option>
+<option value="facebook">Facebook Ads</option>
+</select>
+
+<label>Niche</label>
+<input id="niche" type="text" placeholder="Enter niche"/>
+
+<p class="free-trial" id="trials">Free Trials Remaining: 3</p>
+
+<button onclick="generateDropshipping()">Generate Research</button>
+
+<p class="price">
+Formal: <span class="discount"> $̶1̶5</span>
+<p class="price">
+Price: <span id="discounted-price">$7 / month</span>
+</p>
+<button onclick="subscribe()">Subscribe / Unlock Full Access</button>
+
+</div>
+<div id="result"></div>
+
+<script>
+function updateTrials(trialsLeft){
+    document.getElementById("trials").innerText = "Free Trials Remaining: " + trialsLeft;
+}
+
+function generateDropshipping(){
+    let type=document.getElementById("research_type").value;
+    let platform=document.getElementById("platform").value;
+    let niche=document.getElementById("niche").value;
+    if(!niche.trim()){alert("Please enter a niche"); return;}
+
+    fetch("/dropshipping",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:type,platform:platform,niche:niche})})
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("result").innerHTML="<h3>Result</h3><p>"+data.result+"</p>";
+        document.getElementById("result").style.display="block";
+        if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+    })
+    .catch(err=>alert("Error connecting to server"));
+}
+
+function subscribe(){
+    let amount = 7; // USD only
+    fetch("/paypal-init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amount})})
+    .then(res=>res.json()).then(data=>{
+        if(data.status==="success") window.location.href=data.redirect_url;
+    });
+}
+
+// Fetch initial trials count dynamically
+fetch("/trials?vm=dropshipping").then(res=>res.json()).then(data=>{
+    if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+});
+</script>
+</body>
+</html>
