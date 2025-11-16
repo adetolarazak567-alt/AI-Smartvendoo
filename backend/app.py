@@ -1,43 +1,34 @@
-from dotenv import load_dotenv
-import os
-
-load_dotenv()  # loads variables from .env
-import os
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import os
+import datetime
 
-load_dotenv()  # Load .env file
+# ----------------------
+# Load Environment Variables
+# ----------------------
+load_dotenv()
 
-app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
-CORS(app, supports_credentials=True)
-
-# ------------------------
-# ENV VARIABLES
-# ------------------------
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
-PAYPAL_SECRET = os.getenv("PAYPAL_SECRET")
-NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
-BNB_WALLET = os.getenv("BNB_WALLET")
-
-# ------------------------
-# ADMIN CREDENTIALS
-# ------------------------
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
+BNB_ADDRESS = os.getenv("BNB_ADDRESS")
+NOWPAYMENTS_KEY = os.getenv("NOWPAYMENTS_KEY")
+
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "SUPER_SECRET_KEY")  # fallback key
+CORS(app)
 
 # ------------------------
-# USER DATA (mock)
+# Simple in-memory user/sub tracking
 # ------------------------
-users = {}  # format: {email: {"trials": {"copywriting":3, "freelance":3, "business":3}, "paid_until": datetime}}
+user_trials = {}  # {email: {"copywriting": 3, "freelance": 3, "business": 3, "paid_until": datetime}}
 
-FREE_TRIALS = 3
-SUB_DURATION_DAYS = 30  # Paid subscription duration
+FREE_TRIAL_COUNT = 1  # 1 free trial per service
+SUB_DURATION_DAYS = 30  # paid subscription lasts 30 days
 
 # ------------------------
-# ADMIN LOGIN
+# Admin Login
 # ------------------------
 @app.route("/admin-login", methods=["POST"])
 def admin_login():
@@ -47,105 +38,131 @@ def admin_login():
     if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
         session["admin_logged_in"] = True
         return jsonify({"status": "success"})
-    else:
-        return jsonify({"status": "error", "error": "Invalid email or password"}), 401
+    return jsonify({"status": "error", "error": "Invalid email or password"}), 401
 
 @app.route("/admin-dashboard", methods=["GET"])
 def admin_dashboard():
     if session.get("admin_logged_in"):
-        return jsonify({"status":"success", "users": users})
-    else:
-        return "Unauthorized", 401
+        return jsonify({"status": "success", "users": user_trials})
+    return "Unauthorized", 401
 
 # ------------------------
-# USER TRIALS CHECK
+# User Trials Check
 # ------------------------
 @app.route("/user-trials", methods=["GET"])
-def user_trials():
-    email = request.args.get("email")
-    if email not in users:
-        # Create new user with free trials
-        users[email] = {
-            "trials": {"copywriting": FREE_TRIALS, "freelance": FREE_TRIALS, "business": FREE_TRIALS},
-            "paid_until": None
-        }
-    user = users[email]
-
-    paid = user["paid_until"] and datetime.utcnow() < user["paid_until"]
-    return jsonify({"trials": user["trials"], "paid": paid})
-
-# ------------------------
-# PAYPAL PAYMENT INIT
-# ------------------------
-@app.route("/paypal-init", methods=["POST"])
-def paypal_init():
-    data = request.get_json()
-    email = data.get("email")
-    amount = data.get("amount")
-    # Here you'd normally call PayPal API with PAYPAL_CLIENT_ID + PAYPAL_SECRET
-    # After successful payment, update user's paid_until
-    users[email]["paid_until"] = datetime.utcnow() + timedelta(days=SUB_DURATION_DAYS)
-    return jsonify({"status": "success", "redirect_url": "https://www.paypal.com/checkout"})
+def user_trials_endpoint():
+    email = request.args.get("email", "guest@example.com")
+    now = datetime.datetime.now()
+    user = user_trials.get(email, {})
+    paid_until = user.get("paid_until")
+    paid = paid_until and now < paid_until
+    trials = {
+        "copywriting": user.get("copywriting", FREE_TRIAL_COUNT),
+        "freelance": user.get("freelance", FREE_TRIAL_COUNT),
+        "business": user.get("business", FREE_TRIAL_COUNT),
+    }
+    return jsonify({"trials": trials, "paid": paid})
 
 # ------------------------
-# CRYPTO PAYMENT INIT (NowPayments)
-# ------------------------
-@app.route("/crypto-pay", methods=["POST"])
-def crypto_pay():
-    data = request.get_json()
-    email = data.get("email")
-    amount = data.get("amount")
-    # Here you'd normally call NowPayments API with NOWPAYMENTS_API_KEY
-    users[email]["paid_until"] = datetime.utcnow() + timedelta(days=SUB_DURATION_DAYS)
-    return jsonify({"status": "success", "invoice_url": "https://nowpayments.io/invoice/xyz"})
-
-# ------------------------
-# VENDING MACHINE ENDPOINTS
+# Vending Machine Endpoints
 # ------------------------
 @app.route("/copywriting", methods=["POST"])
 def copywriting():
     data = request.get_json()
-    email = data.get("email")
-    user = users[email]
-    # Check trials or subscription
-    if (user["trials"]["copywriting"] <= 0) and (not user["paid_until"] or datetime.utcnow() > user["paid_until"]):
-        return jsonify({"error": "Free trials over. Subscribe to continue."}), 403
+    email = data.get("email", "guest@example.com")
+    service = "copywriting"
+    user = user_trials.setdefault(email, {})
+    # Check free trial or paid
+    now = datetime.datetime.now()
+    paid_until = user.get("paid_until")
+    paid = paid_until and now < paid_until
+    if not paid and user.get(service, FREE_TRIAL_COUNT) <= 0:
+        return jsonify({"error": "Free trials finished. Subscribe to continue."}), 403
     # Deduct trial if not paid
-    if not user["paid_until"] or datetime.utcnow() > user["paid_until"]:
-        user["trials"]["copywriting"] -= 1
+    if not paid:
+        user[service] = user.get(service, FREE_TRIAL_COUNT) - 1
 
     copy_type = data.get("copy_type")
     tone = data.get("tone")
     name = data.get("name")
-    result_text = f"Elite {copy_type} for '{name}' in a {tone} tone."
+    result_text = f"Elite copywriting for '{name}' in a {tone} tone. ({copy_type})"
     return jsonify({"result": result_text})
 
 @app.route("/freelance", methods=["POST"])
 def freelance():
     data = request.get_json()
-    email = data.get("email")
-    user = users[email]
-    if (user["trials"]["freelance"] <= 0) and (not user["paid_until"] or datetime.utcnow() > user["paid_until"]):
-        return jsonify({"error": "Free trials over. Subscribe to continue."}), 403
-    if not user["paid_until"] or datetime.utcnow() > user["paid_until"]:
-        user["trials"]["freelance"] -= 1
-    result_text = f"Elite proposal for {data.get('job_type')} on {data.get('platform')} at {data.get('level')} level."
+    email = data.get("email", "guest@example.com")
+    service = "freelance"
+    user = user_trials.setdefault(email, {})
+    now = datetime.datetime.now()
+    paid_until = user.get("paid_until")
+    paid = paid_until and now < paid_until
+    if not paid and user.get(service, FREE_TRIAL_COUNT) <= 0:
+        return jsonify({"error": "Free trials finished. Subscribe to continue."}), 403
+    if not paid:
+        user[service] = user.get(service, FREE_TRIAL_COUNT) - 1
+
+    job_type = data.get("job_type")
+    platform = data.get("platform")
+    level = data.get("level")
+    result_text = f"Elite freelance proposal for {job_type} ({level}) on {platform}."
     return jsonify({"result": result_text})
 
 @app.route("/business-plan", methods=["POST"])
 def business_plan():
     data = request.get_json()
-    email = data.get("email")
-    user = users[email]
-    if (user["trials"]["business"] <= 0) and (not user["paid_until"] or datetime.utcnow() > user["paid_until"]):
-        return jsonify({"error": "Free trials over. Subscribe to continue."}), 403
-    if not user["paid_until"] or datetime.utcnow() > user["paid_until"]:
-        user["trials"]["business"] -= 1
-    result_text = f"Elite business idea for {data.get('niche')} in {data.get('output')} format."
+    email = data.get("email", "guest@example.com")
+    service = "business"
+    user = user_trials.setdefault(email, {})
+    now = datetime.datetime.now()
+    paid_until = user.get("paid_until")
+    paid = paid_until and now < paid_until
+    if not paid and user.get(service, FREE_TRIAL_COUNT) <= 0:
+        return jsonify({"error": "Free trials finished. Subscribe to continue."}), 403
+    if not paid:
+        user[service] = user.get(service, FREE_TRIAL_COUNT) - 1
+
+    niche = data.get("niche")
+    output = data.get("output")
+    result_text = f"Elite {output} generated for {niche} niche."
     return jsonify({"result": result_text})
 
 # ------------------------
-# RUN SERVER
+# Dummy Payment Endpoints
+# ------------------------
+@app.route("/paypal-init", methods=["POST"])
+def paypal_init():
+    data = request.get_json()
+    email = data.get("email", "guest@example.com")
+    amount = data.get("amount")
+    # Mark user as paid for 30 days
+    user = user_trials.setdefault(email, {})
+    user["paid_until"] = datetime.datetime.now() + datetime.timedelta(days=SUB_DURATION_DAYS)
+    return jsonify({"status": "success", "redirect_url": "https://www.paypal.com/checkout"})
+
+@app.route("/crypto-init", methods=["POST"])
+def crypto_init():
+    data = request.get_json()
+    email = data.get("email", "guest@example.com")
+    coin = data.get("coin")  # e.g., BNB
+    amount = data.get("amount")
+    # Mark user as paid for 30 days
+    user = user_trials.setdefault(email, {})
+    user["paid_until"] = datetime.datetime.now() + datetime.timedelta(days=SUB_DURATION_DAYS)
+    return jsonify({"status": "success", "address": BNB_ADDRESS})
+
+@app.route("/nowpayments-init", methods=["POST"])
+def nowpayments_init():
+    data = request.get_json()
+    email = data.get("email", "guest@example.com")
+    amount = data.get("amount")
+    # Mark user as paid for 30 days
+    user = user_trials.setdefault(email, {})
+    user["paid_until"] = datetime.datetime.now() + datetime.timedelta(days=SUB_DURATION_DAYS)
+    return jsonify({"status": "success", "checkout_url": "https://nowpayments.io/checkout"})
+
+# ------------------------
+# Run Server
 # ------------------------
 if __name__ == "__main__":
     app.run(debug=True)
