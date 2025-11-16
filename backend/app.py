@@ -1,4 +1,7 @@
-# app.py
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # loads variables from .env
 import os
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
