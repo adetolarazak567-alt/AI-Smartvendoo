@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Freelance Proposal Generator</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+#trials-info{margin:0.8rem 0;color:#d9534f;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+</style>
+</head>
+<body>
+<h1>💼 Freelance Proposal Generator</h1>
+<p>Create winning proposals for platforms like Upwork & Fiverr</p>
+<div class="box">
+<p id="trials-info">Checking your free trials...</p>
+
+<label>Job Type</label>
+<select id="job_type">
+<option value="web_dev">Web Development</option>
+<option value="graphic_design">Graphic Design</option>
+<option value="writing">Writing</option>
+</select>
+
+<label>Platform</label>
+<select id="platform">
+<option value="upwork">Upwork</option>
+<option value="fiverr">Fiverr</option>
+<option value="freelancer">Freelancer</option>
+</select>
+
+<label>Level</label>
+<select id="level">
+<option value="beginner">Beginner</option>
+<option value="intermediate">Intermediate</option>
+<option value="expert">Expert</option>
+</select>
+
+<button id="generate-btn">Generate</button>
+
+<p class="price">
+Formal: <span class="discount">$15</span>
+Now: <span>$7</span>
+</p>
+<button id="subscribe-btn">Subscribe / Unlock Full Access</button>
+</div>
+<div id="result"></div>
+
+<script>
+async function checkTrials() {
+    const res = await fetch("/user-trials");
+    const data = await res.json();
+    const trialsLeft = data.trials.freelance;
+    const paid = data.paid;
+    const trialsInfo = document.getElementById("trials-info");
+    if(paid){trialsInfo.textContent="Paid access: Unlimited use";}
+    else if(trialsLeft>0){trialsInfo.textContent=`Free trial remaining: ${trialsLeft}`;}
+    else{trialsInfo.textContent="Free trials used up! Subscribe to continue.";}
+}
+
+document.getElementById("generate-btn").addEventListener("click", async ()=>{
+    const trialsText=document.getElementById("trials-info").textContent;
+    if(trialsText.includes("used up")){alert("Please subscribe to continue using this vending machine."); return;}
+    const data={
+        job_type: document.getElementById("job_type").value,
+        platform: document.getElementById("platform").value,
+        level: document.getElementById("level").value
+    };
+    const res=await fetch("/freelance",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    const result=await res.json();
+    document.getElementById("result").innerHTML="<h3>Result</h3><p>"+result.result+"</p>";
+    document.getElementById("result").style.display="block";
+    checkTrials();
+});
+
+document.getElementById("subscribe-btn").addEventListener("click", async ()=>{
+    const res=await fetch("/paypal-init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:7})});
+    const data=await res.json();
+    if(data.status==="success") window.location.href=data.redirect_url;
+});
+
+checkTrials();
+</script>
+</body>
+</html>
