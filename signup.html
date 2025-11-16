@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin Dashboard - AI SmartVendo</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body {
+    font-family: 'Inter', sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+.wrap {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+}
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #007bff;
+}
+.table-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+}
+th {
+    background: #f5f7fa;
+    color: #555;
+}
+tr:hover {
+    background: #f9f9f9;
+}
+button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+}
+.btn-small { padding: 5px 8px; margin-right: 6px; }
+.green { background: #10b981; color: #fff; }
+.red { background: #ef4444; color: #fff; }
+button:hover { opacity: 0.9; }
+pre {
+    background: #f5f7fa;
+    padding: 1rem;
+    border-radius: 8px;
+    max-height: 300px;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+@media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>Admin Dashboard - AI SmartVendo</header>
+
+<div class="wrap">
+
+  <!-- Overview Cards -->
+  <div class="grid">
+    <div class="card">
+      <h3>Total Users</h3>
+      <p id="total">...</p>
+    </div>
+    <div class="card">
+      <h3>Active (24h)</h3>
+      <p id="active">...</p>
+    </div>
+    <div class="card">
+      <h3>Banned Users</h3>
+      <p id="banned">...</p>
+    </div>
+    <div class="card">
+      <h3>Earnings</h3>
+      <p id="earnings">...</p>
+    </div>
+  </div>
+
+  <!-- Recent Users Card -->
+  <div class="card">
+    <h3>Recent Users</h3>
+    <div class="table-container">
+      <table id="usersTable">
+        <thead>
+          <tr><th>Email</th><th>Country</th><th>Trials</th><th>Usage</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Activity Logs Card -->
+  <div class="card">
+    <h3>Recent Activity Logs (latest 200)</h3>
+    <pre id="logs"></pre>
+  </div>
+
+</div>
+
+<script>
+async function loadData(){
+  let token = localStorage.getItem('admin_token');
+  if(!token){
+    const email = prompt("Admin Email:");
+    const password = prompt("Admin Password:");
+    const res = await fetch("/login", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({email,password})
+    });
+    const j = await res.json();
+    if(j.status === "success" && j.token){
+      token = j.token;
+      localStorage.setItem("admin_token", token);
+    } else {
+      alert("Login failed! Reload page to try again.");
+      return;
+    }
+  }
+
+  const res = await fetch('/admin_data', { headers: { 'Authorization': 'Bearer ' + token }});
+  const j = await res.json();
+  if(j.error){
+    alert('Auth error: ' + j.error);
+    localStorage.removeItem('admin_token');
+    location.reload();
+    return;
+  }
+
+  document.getElementById('total').innerText = j.total_users;
+  document.getElementById('active').innerText = j.active_users_last_24h;
+  document.getElementById('banned').innerText = j.banned_users;
+  document.getElementById('earnings').innerText = j.earnings || 0;
+
+  const tbody = document.querySelector('#usersTable tbody');
+  tbody.innerHTML = '';
+  j.recent_users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${u.email||'(anon)'}</td>
+      <td>${u.country||'NG'}</td>
+      <td>${u.trial_uses_left}</td>
+      <td>${u.usage_count}</td>
+      <td>${new Date(u.created_at*1000).toLocaleString()}</td>
+      <td>
+        <button class="btn-small red" onclick="banUser('${u.email}')">Ban</button>
+        <button class="btn-small green" onclick="unbanUser('${u.email}')">Unban</button>
+        <button class="btn-small red" onclick="deleteUser('${u.email}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('logs').innerText = JSON.stringify(j.recent_logs.slice(0,200), null, 2);
+}
+
+async function banUser(email){
+  if(!confirm('Ban ' + email + '?')) return;
+  const token = localStorage.getItem('admin_token');
+  await fetch('/ban_user', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({email}) });
+  loadData();
+}
+
+async function unbanUser(email){
+  const token = localStorage.getItem('admin_token');
+  await fetch('/unban_user', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({email}) });
+  loadData();
+}
+
+async function deleteUser(email){
+  if(!confirm('Delete ' + email + '?')) return;
+  const token = localStorage.getItem('admin_token');
+  await fetch('/delete_user', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({email}) });
+  loadData();
+}
+
+loadData();
+</script>
+
+</body>
+</html>
