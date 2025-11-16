@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Social Growth Vending</title>
+<style>
+body{font-family:Poppins,sans-serif;background:#eef3ff;padding:2rem;text-align:center;}
+.box{background:#fff;max-width:600px;margin:auto;padding:1.5rem;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,0.08);}
+select,textarea,input{width:100%;padding:0.7rem;margin:0.6rem 0;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+button{background:#007bff;color:#fff;border:none;padding:0.8rem 1.2rem;border-radius:10px;cursor:pointer;width:100%;margin-top:1rem;}
+#result{margin-top:1.5rem;padding:1rem;background:#fff;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.06);text-align:left;display:none;}
+.price{margin-top:1rem;font-size:0.9rem;color:#555;}
+.discount{text-decoration: line-through; color: #999; margin-right: 0.5rem;}
+#trials{margin-top:0.5rem;font-size:0.9rem;color:#d9534f;}
+</style>
+</head>
+<body>
+<h1>📱 Social Media Growth Machine</h1>
+<p>Generate viral content for any platform</p>
+<div class="box">
+<label>Choose Platform</label>
+<select id="platform">
+<option value="TikTok">TikTok</option>
+<option value="Instagram">Instagram</option>
+<option value="Twitter">X (Twitter)</option>
+<option value="YouTube">YouTube</option>
+<option value="Facebook">Facebook</option>
+</select>
 
+<label>Content Type</label>
+<select id="type">
+<option value="captions">Captions</option>
+<option value="hashtags">Hashtags</option>
+<option value="hooks">Viral Hooks</option>
+<option value="post_ideas">Post Ideas</option>
+<option value="scripts">Video Scripts</option>
+<option value="schedule">Posting Schedule</option>
+<option value="seo">SEO Keywords (YouTube)</option>
+</select>
+
+<label>Enter Topic or Niche</label>
+<textarea id="topic" rows="4" placeholder="e.g. fitness, skincare, crypto, motivation..."></textarea>
+
+<p id="trials">Free Trials Remaining: 3</p>
+
+<button onclick="generateSocial()">Generate Content</button>
+
+<p class="price">
+Formal: <span class="discount" id="formal-price">$15</span>
+Now: <span id="discounted-price">$7</span>
+</p>
+<button onclick="subscribe()">Subscribe / Unlock Full Access</button>
+</div>
+<div id="result"></div>
+
+<script>
+function updateTrials(trialsLeft){
+    document.getElementById("trials").innerText = "Free Trials Remaining: " + trialsLeft;
+}
+
+function generateSocial(){
+    let platform = document.getElementById("platform").value;
+    let type = document.getElementById("type").value;
+    let topic = document.getElementById("topic").value;
+    if(topic.trim() === ""){ alert("Please enter a topic"); return; }
+
+    fetch("/social", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({platform: platform, type: type, topic: topic})
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerHTML = "<h3>Result</h3><p>"+ data.result +"</p>";
+        document.getElementById("result").style.display = "block";
+        if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+    })
+    .catch(err => alert("Error connecting to server"));
+}
+
+function subscribe(){
+    fetch("/pricing").then(res=>res.json()).then(rate=>{
+        let amount = rate.per_month;
+        fetch("/paypal-init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amount})})
+        .then(res=>res.json()).then(data=>{
+            if(data.status==="success") window.location.href=data.redirect_url;
+        });
+    });
+}
+
+// Initial fetch to get remaining trials
+fetch("/trials?vm=social").then(res=>res.json()).then(data=>{
+    if(data.trials_left !== undefined){ updateTrials(data.trials_left); }
+});
+</script>
+</body>
+</html>
